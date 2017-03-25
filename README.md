@@ -1,2 +1,2 @@
 
-cubostratusc (**c** stands for collector) is a part of the future **cubostratus** distributed instrumentation platform with emphasies on containers.
+cubostratusc (**c** stands for collector) is part of the future **cubostratus** - distributed instrumentation platform with emphasis on containers and microservice envrionments.
