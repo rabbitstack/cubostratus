@@ -22,5 +22,5 @@ cargo build
 ````
 4. Run it (you'll need a Kafka broker running)
 ```bash
-./target/debug/cubostratusc
+sudo ./target/debug/cubostratusc
 ```
