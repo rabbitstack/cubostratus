@@ -20,7 +20,9 @@ git clone https://github.com/rabbitstack/cubostratusc.git
 cd cubostratusc
 cargo build
 ````
-4. Run it (you'll need a Kafka broker running)
+4. Create a `Kafka` topic and start `cubostratusc`:
 ```bash
+bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 \
+                    --partitions 1 --topic cubostratus
 sudo ./target/debug/cubostratusc
 ```
