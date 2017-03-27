@@ -160,7 +160,7 @@ impl SyscallMeta {
     /// the `SyscallParam::parse` method. The return value of the previous method is being put into
     /// the hash map and indexed by parameter name.
     ///
-    pub fn build_params<'a>(&self, syscall_hdr: *mut SyscallHdr) -> HashMap<String, Value> {
+    pub fn build_params(&self, syscall_hdr: *mut SyscallHdr) -> HashMap<String, Value> {
         let mut params = HashMap::<String, Value>::default();
         unsafe {
             let lens = syscall_hdr.offset(1) as *const u16;
