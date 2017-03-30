@@ -9,7 +9,7 @@ use chrono::{DateTime, UTC};
 use value::Value;
 
 #[repr(C, packed)]
-pub struct SyscallHdr {
+pub struct Syscall {
     /// timestamp in nanoseconds from epoch
     pub ts: u64,
     /// the thread id that generated the syscall
@@ -43,7 +43,7 @@ pub struct SyscallParam {
 }
 
 #[derive(Serialize, Debug)]
-pub struct Syscall {
+pub struct SyscallInfo {
     /// timestamp expressed as UTC date/time structure
     pub ts: DateTime<UTC>,
     /// name of the system call
@@ -153,25 +153,24 @@ pub enum Direction {
 
 impl SyscallMeta {
     /// Populates the syscall parameter map by applying pointer arithmetic
-    /// operations on the system call header structure. The parameter's buffer is extracted
-    /// from the slice which is constructed from syscall header structure pointer
+    /// operations on the system call structure. The parameter's buffer is extracted
+    /// from the slice which is constructed from syscall structure pointer
     /// and the number of parameters.
     /// For each parameter found in the slice, the parsing stage is delegated to
-    /// the `SyscallParam::parse` method. The return value of the previous method is being put into
+    /// the `SyscallParam::parse` method. The return value of the previous method is put into
     /// the hash map and indexed by parameter name.
     ///
-    pub fn build_params(&self, syscall_hdr: *mut SyscallHdr) -> HashMap<String, Value> {
+    pub fn build_params(&self, syscall: *mut Syscall) -> HashMap<String, Value> {
         let mut params = HashMap::<String, Value>::default();
         unsafe {
-            let lens = syscall_hdr.offset(1) as *const u16;
+            let lens = syscall.offset(1) as *const u16;
             let mut buf = lens.offset(self.nparams as isize) as *const u8;
-            let mut i = 0;
-
-            for len in slice::from_raw_parts(lens, self.nparams) {
+            for (i, len) in slice::from_raw_parts(lens, self.nparams)
+                        .iter()
+                        .enumerate() {
                 let ref param = self.params[i];
                 params.insert(param.name.to_string(), param.parse(buf));
                 buf = buf.offset(*len as isize);
-                i += 1;
             }
         }
         params
