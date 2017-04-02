@@ -13,7 +13,7 @@ use nix::sys::mman::{MAP_SHARED, PROT_READ, PROT_WRITE};
 use std::ptr;
 use std::mem::size_of;
 
-use syscall::{SyscallHdr, Syscall};
+use syscall::{Syscall, SyscallInfo};
 use syscall::syscall_table::SyscallTable;
 use error::{Error, Result};
 
@@ -46,7 +46,7 @@ struct RingBufferDev {
     buffer: *mut libc::c_char,
     buffer_info: *mut RingBufferInfo,
     last_readsize: u32,
-    next_syscall_hdr: *mut libc::c_char,
+    next_syscall: *mut libc::c_char,
     len: u32
 }
 
@@ -55,7 +55,7 @@ pub trait Collector {
 
     fn stop(&mut self) -> Result<()>;
 
-    fn next(&mut self) -> Option<Syscall>;
+    fn next(&mut self) -> Option<SyscallInfo>;
 }
 
 pub struct RingBufferCollector {
@@ -69,7 +69,7 @@ pub struct RingBufferCollector {
 /// buffer data structure to publish the intercepted system calls from the
 /// kernel space. This aims to provide extremely high throughput and efficiency.
 impl Collector for RingBufferCollector {
-    /// Opens available ring buffer devices and maps the corresponding
+    /// Opens the available ring buffer devices and maps the corresponding
     /// buffer content and the buffer information to a memory region
     /// of the calling thread.
     ///
@@ -77,7 +77,7 @@ impl Collector for RingBufferCollector {
     /// IO code to the underlying device to start the capture from the
     /// kernel driver.
     ///
-    /// Returns `Result::Ok(i)` where `i` holds the number of devices (CPUs) detected on the
+    /// Returns `Result::Ok(i)` where `i` is the number of devices (CPUs) detected on the
     /// system or `Result::Err(e)` where `e` is the payload with a string containing the detailed
     /// error message.
     ///
@@ -120,12 +120,12 @@ impl Collector for RingBufferCollector {
                         buffer: buffer.unwrap() as *mut libc::c_char,
                         buffer_info: buffer_info.unwrap() as *mut RingBufferInfo,
                         last_readsize: 0,
-                        next_syscall_hdr: ptr::null_mut(),
+                        next_syscall: ptr::null_mut(),
                         len: 0
                     };
 
                     self.devs.push(dev);
-                    // send the ioctl code to start the capture
+                    // ~ send the ioctl code to start the capture
                     unsafe { ioctl_start(fd); }
 
                 },
@@ -174,42 +174,41 @@ impl Collector for RingBufferCollector {
     /// let collector = RingBufferCollector::new();
     /// loop {
     ///     match collector.next() {
-    ///         Some(syscall) => {
-    ///             println!("syscall name {}", syscall.name);
+    ///         Some(syscall_info) => {
+    ///             println!("syscall name {}", syscall_info.name);
     ///         },
     ///         None => {}
     ///     }
     /// }
     /// ```
     ///
-    fn next(&mut self) -> Option<Syscall> {
+    fn next(&mut self) -> Option<SyscallInfo> {
         let mut cpu = None;
-        let mut syscall_hdr = ptr::null_mut();
+        let mut syscall = ptr::null_mut();
 
         for (j, dev) in self.devs.iter().enumerate() {
             if dev.len == 0 {
                 continue;
             } else {
-                syscall_hdr = dev.next_syscall_hdr as *mut SyscallHdr;
+                syscall = dev.next_syscall as *mut Syscall;
                 cpu = Some(j);
             }
         }
         if cpu != None {
             let cpuid = cpu.unwrap();
             unsafe {
-                assert!(self.devs[cpuid].len >= (*syscall_hdr).len);
-                let len = (*syscall_hdr).len as isize;
-                self.devs[cpuid].len -= (*syscall_hdr).len;
-                self.devs[cpuid].next_syscall_hdr = self.devs[cpuid].next_syscall_hdr.offset(len);
+                assert!(self.devs[cpuid].len >= (*syscall).len);
+                let len = (*syscall).len as isize;
+                self.devs[cpuid].len -= (*syscall).len;
+                self.devs[cpuid].next_syscall = self.devs[cpuid].next_syscall.offset(len);
             };
         } else {
-            // in case buffers are empty
+            // ~ in case buffers are empty
             if self.check_next_wait() {
                 unsafe { libc::usleep(BUFFER_EMPTY_WAIT_TIME_MS * 1000); }
                 self.consecutive_waits += 1;
             }
 
-            // update ring buffer's tail/head
             for mut dev in &mut self.devs {
                 let buffer_info = dev.buffer_info;
                 let ttail: usize = unsafe { ((*buffer_info).tail + dev.last_readsize) as usize };
@@ -219,31 +218,29 @@ impl Collector for RingBufferCollector {
                     unsafe { (*dev.buffer_info).tail = (ttail - RING_BUF_SIZE) as u32 }
                 }
 
-                let read_size = RingBufferCollector::get_buffer_readsize(buffer_info);
+                let read_size = Self::get_buffer_readsize(buffer_info);
                 dev.last_readsize = read_size;
                 dev.len = read_size;
 
-                unsafe { dev.next_syscall_hdr = dev.buffer.offset(ttail as isize); }
+                unsafe { dev.next_syscall = dev.buffer.offset(ttail as isize); }
             }
         }
 
-        // get syscall metadata and create an instance of
-        // the `Syscall` structure which contains required syscall info
-        if syscall_hdr.is_null() {
+        if syscall.is_null() {
             None
         } else {
-            let id = unsafe { (*syscall_hdr).id };
-            let ts = unsafe { (*syscall_hdr).ts };
+            let id = unsafe { (*syscall).id };
+            let ts = unsafe { (*syscall).ts };
 
             match self.syscall_table.get_syscall_meta(id as usize) {
                 Some(meta) => {
                     let timestamp = NaiveDateTime::from_timestamp((ts / 1000000000) as i64, 0);
-                    let syscall = Syscall {
+                    let syscall_info = SyscallInfo {
                         ts: DateTime::<UTC>::from_utc(timestamp, UTC),
                         name: meta.name.to_string(),
-                        params: meta.build_params(syscall_hdr),
+                        params: meta.build_params(syscall),
                     };
-                    return Some(syscall);
+                    return Some(syscall_info);
 
                 },
                 None => { return None; }
@@ -268,7 +265,7 @@ impl RingBufferCollector {
     fn check_next_wait(&mut self) -> bool {
         let mut res = true;
         for dev in &self.devs {
-            let read_size = RingBufferCollector::get_buffer_readsize(dev.buffer_info);
+            let read_size = Self::get_buffer_readsize(dev.buffer_info);
 
             if read_size > 20000 {
                 self.consecutive_waits = 0;
@@ -289,7 +286,6 @@ impl RingBufferCollector {
 
     /// Calculates the new size of the buffer to be read.
     fn get_buffer_readsize(buffer_info: *mut RingBufferInfo) -> u32 {
-
         let head: usize = unsafe { (*buffer_info).head as usize };
         let tail: usize = unsafe { (*buffer_info).tail as usize };
 
@@ -297,7 +293,3 @@ impl RingBufferCollector {
 
     }
 }
-
-
-
-
