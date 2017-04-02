@@ -1,0 +1,4 @@
+[kafka]
+hosts = ["localhost:8092"]
+topic = "cubostratus"
+ack_timeout = 1
