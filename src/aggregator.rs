@@ -1,46 +1,52 @@
 //! Syscall's stream aggregators used to ingest the flow of syscall events from the collector
 //! to messaging systems.
-
-use kafka::producer::{Producer, Record, RequiredAcks};
 use std::time::Duration;
-use std::marker::Sized;
+use kafka::producer::{Producer, Record, RequiredAcks};
 use kafka;
+use config::KafkaConfig;
 
-pub trait Aggregator<E, C> {
-    fn boot(config: C) -> Result<Self, E> where Self: Sized;
+pub trait Aggregator<T> {
 
-    fn do_aggregate(&mut self, body: String);
+    fn do_aggregate(&mut self, body: T);
 }
 
 pub struct KafkaAggregator {
-    producer: Producer,
-    topic: &'static str
-}
-
-pub struct KafkaConfig {
-    pub hosts: Vec<String>,
-    pub ack_timeout: Duration,
-    pub topic: &'static str
+    /// an instance of the Kafka producer
+    producer: Option<Producer>,
+    /// kafka configuration
+    config: KafkaConfig
 }
 
 /// Implementation of the syscall's aggregator which emits the stream of syscall events
 /// to Kafka brokers.
-impl Aggregator<kafka::Error, KafkaConfig> for KafkaAggregator {
-
-    fn boot(config: KafkaConfig) -> Result<KafkaAggregator, kafka::Error> {
-        let producer = match Producer::from_hosts(config.hosts)
-                .with_ack_timeout(config.ack_timeout)
-                .create() {
-                Ok(p) => p,
-                Err(e) => return Err(e)
-        };
-        Ok(KafkaAggregator {
-            topic: config.topic,
-            producer: producer
-        })
-    }
+impl Aggregator<String> for KafkaAggregator {
 
     fn do_aggregate(&mut self, body: String) {
-        self.producer.send(&Record::from_value(self.topic, body.as_bytes())).unwrap();
+        match self.producer {
+            Some(ref mut p) => {
+                p.send(&Record::from_value(&self.config.topic, body.as_bytes())).unwrap();
+            }
+            None => {}
+        }
+    }
+}
+
+impl KafkaAggregator {
+
+    pub fn new(config: KafkaConfig) -> KafkaAggregator {
+        KafkaAggregator {
+            producer: None,
+            config: config
+        }
+    }
+
+    pub fn start(&mut self) -> Result<(), kafka::Error> {
+        self.producer = match Producer::from_hosts(self.config.hosts.clone())
+                .with_ack_timeout(Duration::from_secs(self.config.ack_timeout))
+                .create() {
+                    Ok(p) => Some(p),
+                    Err(e) => return Err(e)
+        };
+        Ok(())
     }
 }
