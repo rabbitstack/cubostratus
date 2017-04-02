@@ -1,6 +1,6 @@
-
-/// Container for values. It's used as return type for functions that can
-/// deal with heterogeneous data types.
+/// Container for primitive stack allocated `(i32, u32, bool, etc)` as well as heap
+/// allocated `(String)` data types. This enum is used by `SyscallParam::parse` method
+/// to store the content of the system call parameter's payload.
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum Value {
