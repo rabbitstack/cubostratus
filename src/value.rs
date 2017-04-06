@@ -1,6 +1,9 @@
 /// Container for primitive stack allocated `(i32, u32, bool, etc)` as well as heap
 /// allocated `(String)` data types. This enum is used by `SyscallParam::parse` method
 /// to store the content of the system call parameter's payload.
+/// Some syscall's parameters can have multiple attributes, for example, the socket tuple
+/// is comprised of IP address and port number. In that case, the `Value` enum can also have
+/// structures associated with it.
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum Value {
