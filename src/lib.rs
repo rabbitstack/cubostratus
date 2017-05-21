@@ -9,10 +9,14 @@ extern crate kafka;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate toml;
+#[macro_use]
+extern crate nom;
+extern crate glob;
 
 pub mod collector;
 pub mod syscall;
 pub mod aggregator;
 pub mod config;
+pub mod state;
 mod error;
 mod value;
