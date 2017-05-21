@@ -147,6 +147,19 @@ impl Default for SyscallTable {
                 SyscallMeta{ name: "setsockopt", category: Category::Net, flags: vec![Flags::None], nparams: 0, params: vec![] },
                 SyscallMeta{ name: "getsockopt", category: Category::Net, flags: vec![Flags::None], nparams: 0, params: vec![] },
                 SyscallMeta{ name: "getsockopt", category: Category::Net, flags: vec![Flags::None], nparams: 0, params: vec![] },
+                SyscallMeta{ name: "sendmsg", category: Category::IOWrite, flags: vec![Flags::UsesFd, Flags::ModifiesState, Flags::WritesToFd], nparams: 3, params: vec![SyscallParam { name: "fd", kind: ParamType::Fd, fmt: ParamFormat::Dec }, SyscallParam { name: "size", kind: ParamType::UInt32, fmt: ParamFormat::Dec }, SyscallParam { name: "tuple", kind: ParamType::SockTuple, fmt: ParamFormat::Na }]},
+                SyscallMeta{ name: "sendmsg", category: Category::IOWrite, flags: vec![Flags::UsesFd, Flags::ModifiesState, Flags::WritesToFd], nparams: 2, params: vec![SyscallParam { name: "res", kind: ParamType::ErrNo, fmt: ParamFormat::Dec }, SyscallParam { name: "data", kind: ParamType::ByteBuffer, fmt: ParamFormat::Na }]},
+                SyscallMeta{ name: "sendmmsg", category: Category::IOWrite, flags: vec![], nparams: 0, params: vec![] },
+                SyscallMeta{ name: "sendmmsg", category: Category::IOWrite, flags: vec![], nparams: 0, params: vec![] },
+                SyscallMeta{ name: "recvmsg", category: Category::IORead, flags: vec![Flags::UsesFd, Flags::ModifiesState, Flags::ReadsFromFd], nparams: 1, params: vec![SyscallParam { name: "fd", kind: ParamType::Fd, fmt: ParamFormat::Dec }]},
+                SyscallMeta{ name: "recvmsg", category: Category::IORead, flags: vec![Flags::UsesFd, Flags::ModifiesState, Flags::ReadsFromFd], nparams: 4, params: vec![SyscallParam { name: "res", kind: ParamType::ErrNo, fmt: ParamFormat::Dec }, SyscallParam { name: "size", kind: ParamType::UInt32, fmt: ParamFormat::Dec }, SyscallParam { name: "data", kind: ParamType::ByteBuffer, fmt: ParamFormat::Na }, SyscallParam { name: "tuple", kind: ParamType::SockTuple, fmt: ParamFormat::Na }]},
+                SyscallMeta{ name: "recvmmsg", category: Category::IORead, flags: vec![], nparams: 0, params: vec![] },
+                SyscallMeta{ name: "recvmmsg", category: Category::IORead, flags: vec![], nparams: 0, params: vec![] },
+                SyscallMeta{ name: "accept", category: Category::Net, flags: vec![Flags::ModifiesState, Flags::CreatesFd], nparams: 1, params: vec![SyscallParam { name: "flags", kind: ParamType::Int32, fmt: ParamFormat::Hex }]},
+
+
+
+
 
             ]
 
