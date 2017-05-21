@@ -98,7 +98,7 @@ impl Collector for RingBufferCollector {
         let num_devs = num_cpus::get();
         let len = RING_BUF_SIZE * 2;
 
-        // open and map each of the char devices
+        // ~ open and map each of the char devices
         // which represent the ring buffers
         for i in 0..num_devs {
             match open(format!("/dev/sysdig{}", i).as_str(), O_RDWR | O_SYNC, S_IRUSR) {
@@ -288,8 +288,6 @@ impl RingBufferCollector {
     fn get_buffer_readsize(buffer_info: *mut RingBufferInfo) -> u32 {
         let head: usize = unsafe { (*buffer_info).head as usize };
         let tail: usize = unsafe { (*buffer_info).tail as usize };
-
         (if tail > head { RING_BUF_SIZE - tail + head } else { head - tail }) as u32
-
     }
 }
