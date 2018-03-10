@@ -2,7 +2,7 @@
   <img src="https://github.com/rabbitstack/cubostratusc/blob/master/cubostratus.png" />
 </p>
 
-**cubostratus** is a high performance Linux syscall collector. It acquires the syscall flow from the rock solid [sysdig's](https://github.com/draios/sysdig) driver and emits it to Kafka brokers for later ingestion, storage and analysis.
+**cubostratus** is a high performance Linux syscall collector. It acquires the syscall flow from the rock solid [sysdig](https://github.com/draios/sysdig) driver and emits it to Kafka brokers for later ingestion, storage and analysis.
 
 # Usage
 
